@@ -8,6 +8,19 @@ It's a single self-contained Bash script — nothing to build or install.
 
 ![Throwaway Chrome running in a Docker container, viewed in the browser](./readme_images/02-chrome.png)
 
+> ### ⚠️ Compatibility — read this first
+>
+> - **macOS only** (drives your Mac browser + Colima/Docker Desktop).
+> - **Apple Silicon (M1/M2/M3):** works out of the box.
+> - **Intel Macs:** you **must** use the **QEMU** VM backend, or Chrome's renderer
+>   crashes with `Aw, Snap! (SIGSEGV)` on real pages. The default Colima `vz`
+>   backend can't run Chrome's JIT correctly under an Intel hypervisor. This
+>   script sets `COLIMA_VMTYPE=qemu` for you — just install it once with
+>   **`brew install qemu`** (see [Troubleshooting](#aw-snap--cant-open-this-page-sigsegv)).
+> - **Docker Desktop users:** the VM-backend fix is Colima-specific; if you hit
+>   the same crash on Docker Desktop, enable a software/QEMU-style VM or switch to
+>   Colima + QEMU.
+
 ---
 
 ## What This Tool Does
@@ -104,9 +117,67 @@ Edit the variables at the top of the script:
 | `SHM` | `512m` | Shared-memory size for Chrome |
 | `COLIMA_CPU` / `COLIMA_MEM` | `4` / `6` | Colima VM sizing (only if Colima isn't already running) |
 
-> **Tip:** if Chrome's page renderer crashes with `Aw, Snap! (SIGSEGV)`, bump
-> `SHM` to `1g` or `2g` — Chrome needs more shared memory than the default under
-> some virtualised setups.
+The script also launches the container with `--security-opt seccomp=unconfined`
+and GPU-disabling Chrome flags (`APP_ARGS`) — see Troubleshooting for why.
+
+---
+
+## Troubleshooting
+
+### "Am I looking at the container, or my real browser?"
+
+You view the container's Chrome _inside_ a tab of your own Mac browser, so it's
+easy to lose track of which one you're driving. The reliable tell is your **host
+browser's address bar** (the outer one, at the very top of the window):
+
+| | Your real browser (host) | The container (Kasm) |
+| --- | --- | --- |
+| Host address bar | the real site, e.g. `youtube.com` | always **`localhost:6901`** |
+| Host tab title | the page's name | includes **`(kasm-user)`** + a container ID |
+| Address bars on screen | one | **two** — the host's, then a second one _inside_ the page |
+| Your logins / bookmarks | present | empty, logged-out, fresh |
+
+**Rule of thumb:** while the host address bar reads `localhost:6901`, everything
+below it is the sandbox. The moment it shows a real site name, you've clicked out
+into your normal browser — and anything you do there uses your real logins.
+
+### `Aw, Snap!` / `Can't open this page` (`SIGSEGV`)
+
+Chrome's renderer crashes on real pages (apple.com, Google search, YouTube),
+often after a page or two. This is **not** a shared-memory problem — bumping
+`SHM` does not help.
+
+**Root cause:** on Intel Macs, Colima's default `vz`
+(Apple Virtualization.framework) backend doesn't fully support the CPU
+instructions Chrome's V8 **JIT** compiler emits, so the renderer segfaults. (On
+older macOS you may even see Colima warn that `vz` needs a newer macOS.)
+
+**Fix (what this script now does): run the Colima VM on the QEMU backend**,
+which fully emulates the CPU. Set in the script via `COLIMA_VMTYPE=qemu`. It
+requires QEMU on the host:
+
+```bash
+brew install qemu          # one-time (builds from source on Intel — can take a while)
+bash chromedocker.sh down  # tear down the old VM
+colima delete -f           # remove the old vz VM
+bash chromedocker.sh       # starts a fresh QEMU VM + container
+```
+
+With QEMU, JIT **and** WebAssembly work normally, so MetaMask and crypto dApps
+are fine. Trade-off: QEMU is a bit slower than `vz` at runtime.
+
+The container is also started with `--security-opt seccomp=unconfined` and
+GPU-disabling `APP_ARGS` (belt-and-suspenders for the virtualised environment);
+leave those in place.
+
+> **Quick workaround (no VM rebuild):** adding `--js-flags=--jitless` to
+> `CHROME_FLAGS` also stops the crash by disabling the JIT — but it **disables
+> WebAssembly**, so MetaMask / some dApps break. Prefer the QEMU fix above.
+
+### The container's Chrome is logged out / doesn't have my extensions
+
+That's by design — it's a fresh, isolated profile with none of your host state.
+Stopping the container wipes it. That isolation is the whole point of the tool.
 
 ---
 
@@ -114,6 +185,8 @@ Edit the variables at the top of the script:
 
 - macOS
 - Docker, via **Colima** (`brew install colima docker`) **or** Docker Desktop
+- **Intel Macs:** also `brew install qemu` — the script runs Colima on the QEMU
+  backend to avoid Chrome renderer crashes (see Troubleshooting)
 
 The first run pulls the `kasmweb/chrome` image (~2 GB), so give it a minute.
 Subsequent starts are fast.

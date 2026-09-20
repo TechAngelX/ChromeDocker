@@ -23,9 +23,18 @@ VNC_PW="password"
 SHM="512m"
 URL="https://localhost:$PORT"
 
+# Chrome flags passed into the container (Kasm reads $APP_ARGS).
+# GPU is disabled because the Colima VM has no real GPU (--disable-gpu forces
+# software rendering).
+CHROME_FLAGS="--start-maximized --no-sandbox --disable-gpu --disable-software-rasterizer --disable-dev-shm-usage --disable-features=RendererCodeIntegrity"
+
 # Colima VM sizing (only used if Colima isn't already running)
 COLIMA_CPU=4
 COLIMA_MEM=6
+# VM backend. On Intel Macs the default Virtualization.framework ("vz") backend
+# makes Chrome's V8 JIT SIGSEGV ("Aw, Snap!") on real pages. QEMU fully emulates
+# the CPU and fixes it (needs: brew install qemu). See README > Troubleshooting.
+COLIMA_VMTYPE=qemu
 
 ACTION="${1:-start}"
 
@@ -36,9 +45,11 @@ ensure_docker() {
   if docker_ok; then return 0; fi
 
   if command -v colima >/dev/null 2>&1; then
-    echo "==> Docker daemon not running. Starting Colima (cpu=$COLIMA_CPU mem=${COLIMA_MEM}g)..."
-    colima start --cpu "$COLIMA_CPU" --memory "$COLIMA_MEM" || {
-      echo "    Colima failed to start."; exit 1; }
+    echo "==> Docker daemon not running. Starting Colima (cpu=$COLIMA_CPU mem=${COLIMA_MEM}g vm=$COLIMA_VMTYPE)..."
+    colima start --cpu "$COLIMA_CPU" --memory "$COLIMA_MEM" --vm-type "$COLIMA_VMTYPE" || {
+      echo "    Colima failed to start."
+      [ "$COLIMA_VMTYPE" = "qemu" ] && echo "    (QEMU backend needs: brew install qemu)"
+      exit 1; }
   elif [ -d "/Applications/Docker.app" ]; then
     echo "==> Docker daemon not running. Launching Docker Desktop..."
     open -a Docker
@@ -83,10 +94,15 @@ start() {
   docker pull "$IMAGE" || { echo "    Pull failed."; exit 1; }
 
   echo "==> Starting throwaway Chrome container..."
+  # --security-opt seccomp=unconfined: Chrome's renderer SIGSEGVs ("Aw, Snap!")
+  # under Colima's virtualized Intel CPU because its seccomp syscall filter
+  # misbehaves in the VM. Unconfining seccomp is the real fix for the crashes.
   docker run --rm -d --name "$NAME" \
     --shm-size="$SHM" \
+    --security-opt seccomp=unconfined \
     -p "127.0.0.1:$PORT:6901" \
     -e VNC_PW="$VNC_PW" \
+    -e APP_ARGS="$CHROME_FLAGS" \
     "$IMAGE" >/dev/null || { echo "    docker run failed."; exit 1; }
 
   wait_for_ui
