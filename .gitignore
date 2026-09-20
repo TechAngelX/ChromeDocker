@@ -11,8 +11,13 @@
 *.swo
 *~
 
+icpr.sh
+
 # chrome-killa.sh — destructive local-only utility, kept out of the public repo
 chrome-killa.sh
+
+# icloud-passwords-repair.sh — local Mac fix, unrelated to ChromeDocker's purpose
+icloud-passwords-repair.sh
 
 # Chrome installer downloaded by chrome-killa.sh
 googlechrome.dmg
