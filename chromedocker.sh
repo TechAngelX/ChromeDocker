@@ -23,6 +23,11 @@ VNC_PW="password"
 SHM="512m"
 URL="https://localhost:$PORT"
 
+# Timezone the container (and therefore Chrome's Intl/Date APIs) reports.
+# Asia/Tokyo is UTC+9 with no daylight-saving, so it's a stable "9 hours ahead".
+# Change this to any tz database name (e.g. America/New_York) to move the clock.
+TZ_NAME="Asia/Tokyo"
+
 # Chrome flags passed into the container (Kasm reads $APP_ARGS).
 # GPU is disabled because the Colima VM has no real GPU (--disable-gpu forces
 # software rendering).
@@ -102,6 +107,7 @@ start() {
     --security-opt seccomp=unconfined \
     -p "127.0.0.1:$PORT:6901" \
     -e VNC_PW="$VNC_PW" \
+    -e TZ="$TZ_NAME" \
     -e APP_ARGS="$CHROME_FLAGS" \
     "$IMAGE" >/dev/null || { echo "    docker run failed."; exit 1; }
 
