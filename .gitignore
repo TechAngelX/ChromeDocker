@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# chrome-killa.sh — destructive local-only utility, kept out of the public repo
+chrome-killa.sh
+
+# Chrome installer downloaded by chrome-killa.sh
+googlechrome.dmg
+*.dmg
+
+# Logs / scratch output
+*.log
+tmp/
+scratch/
+
+# Local env / secrets (never commit)
+.env
+.env.*
+!.env.example
