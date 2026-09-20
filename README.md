@@ -10,10 +10,21 @@ It's a single self-contained Bash script — nothing to build or install.
 
 ---
 
-## Why you'd want this
+## What This Tool Does
 
-A brand-new, sandboxed Chrome that leaves **zero footprint** on your real
-machine is useful for a lot more than it first sounds:
+The World Wide Web promises a lot of things, but your privacy is not one of
+them — your data is **not** secure. Every site you touch is quietly building a
+picture of you: browser fingerprinting stitches together your screen size,
+fonts, timezone, GPU, and dozens of other signals into an identifier that
+follows you even with cookies cleared and a VPN on. Cookies, trackers, cached
+logins, and leftover extensions all bleed state between sessions and hand it
+straight to advertisers, data brokers, and anyone snooping in between. Your
+normal browser remembers everything, and so does everyone watching it.
+
+ChromeDocker flips that on its head. It's a brand-new, sandboxed Chrome that
+leaves **zero footprint** on your real machine — a throwaway session with no
+history to mine and nothing to leak back to your daily profile. That's useful
+for a lot more than it first sounds:
 
 - **Private / clean browsing** — a genuinely fresh profile with no cookies,
   history, extensions, or saved logins bleeding in from your daily browser.
